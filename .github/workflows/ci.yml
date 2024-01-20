@@ -48,10 +48,6 @@ jobs:
           - features: tiny
             compiler: gcc
             extra: [nogui]
-          - features: normal
-            shadow: ./src/shadow
-            compiler: gcc
-            architecture: i386
           - features: huge
             coverage: true
           - features: huge
@@ -86,9 +82,6 @@ jobs:
           # If any files in the repository are not listed in Filelist this will
           # exit with an error code and list the missing entries.
           make -f ci/unlisted.make
-
-      - run: sudo dpkg --add-architecture i386
-        if: matrix.architecture == 'i386'
 
       - name: Install packages
         run: |
@@ -225,13 +218,6 @@ jobs:
         run: |
           make -C src autoconf
 
-      - name: Set up shadow dir
-        if: matrix.shadow
-        run: |
-          make -C src shadow
-          echo "SRCDIR=${{ matrix.shadow }}" >> $GITHUB_ENV
-          echo "SHADOWOPT=-C ${{ matrix.shadow }}" >> $GITHUB_ENV
-
       - name: Configure
         run: |
           ./configure --with-features=${{ matrix.features }} ${CONFOPT} --enable-fail-if-missing
@@ -246,7 +232,7 @@ jobs:
       - name: Build
         if: (!contains(matrix.extra, 'unittests'))
         run: |
-          make ${SHADOWOPT} -j${NPROC}
+          make -j${NPROC}
 
       - name: Check version
         if: (!contains(matrix.extra, 'unittests'))
@@ -259,7 +245,7 @@ jobs:
         timeout-minutes: 25
         run: |
           do_test() { sg audio "sg $(id -gn) '$*'"; }
-          do_test make ${SHADOWOPT} ${TEST}
+          do_test make ${TEST}
 
       - name: Vim tags
         if: contains(matrix.extra, 'vimtags')
@@ -375,7 +361,6 @@ jobs:
       LUA_VER: 54
       LUA_VER_DOT: '5.4'
       LUA_RELEASE: 5.4.2
-      LUA32_URL: https://downloads.sourceforge.net/luabinaries/lua-%LUA_RELEASE%_Win32_dllw6_lib.zip
       LUA64_URL: https://downloads.sourceforge.net/luabinaries/lua-%LUA_RELEASE%_Win64_dllw6_lib.zip
       LUA_DIR: D:\Lua
       # do not want \L to end up in pathdef.c and compiler complaining about unknown escape sequences \l
@@ -407,13 +392,9 @@ jobs:
       matrix:
         include:
           - { features: HUGE,   toolchain: msvc,  VIMDLL: no,  GUI: no,  arch: x64, python3: stable }
-          - { features: HUGE,   toolchain: mingw, VIMDLL: yes, GUI: yes, arch: x86, python3: stable, coverage: yes }
-          - { features: HUGE,   toolchain: msvc,  VIMDLL: no,  GUI: yes, arch: x86 }
           - { features: HUGE,   toolchain: mingw, VIMDLL: yes, GUI: no,  arch: x64, coverage: yes }
-          - { features: NORMAL, toolchain: msvc,  VIMDLL: yes, GUI: no,  arch: x86 }
           - { features: NORMAL, toolchain: mingw, VIMDLL: no,  GUI: yes, arch: x64 }
           - { features: TINY,   toolchain: msvc,  VIMDLL: yes, GUI: yes, arch: x64 }
-          - { features: TINY,   toolchain: mingw, VIMDLL: no,  GUI: no,  arch: x86 }
 
     steps:
       - name: Initialize
@@ -425,29 +406,16 @@ jobs:
 
           git config --global core.autocrlf input
 
-          if ${{ matrix.arch == 'x64' }}; then
-            cygreg=registry
-            pyreg=
-            echo "VCARCH=amd64" >> $GITHUB_ENV
-            echo "WARCH=x64" >> $GITHUB_ENV
-            echo "BITS=64" >> $GITHUB_ENV
-            echo "MSYSTEM=MINGW64" >> $GITHUB_ENV
-          else
-            cygreg=registry32
-            pyreg=-32
-            echo "VCARCH=x86" >> $GITHUB_ENV
-            echo "WARCH=ia32" >> $GITHUB_ENV
-            echo "BITS=32" >> $GITHUB_ENV
-            echo "MSYSTEM=MINGW32" >> $GITHUB_ENV
-          fi
+          cygreg=registry
+          pyreg=
+          echo "VCARCH=amd64" >> $GITHUB_ENV
+          echo "WARCH=x64" >> $GITHUB_ENV
+          echo "BITS=64" >> $GITHUB_ENV
+          echo "MSYSTEM=MINGW64" >> $GITHUB_ENV
 
           echo "VCVARSALL=$(vswhere -products \* -latest -property installationPath)\\VC\\Auxiliary\\Build\\vcvarsall.bat" >> $GITHUB_ENV
           if ${{ matrix.features != 'TINY' }}; then
-            if ${{ matrix.arch == 'x86' }}; then
-              choco install python2 --no-progress --forcex86
-            else
-              choco install python2 --no-progress
-            fi
+            choco install python2 --no-progress
           fi
           python3_dir=$(cat "/proc/$cygreg/HKEY_LOCAL_MACHINE/SOFTWARE/Python/PythonCore/${PYTHON3_VER_DOT}$pyreg/InstallPath/@")
           echo "PYTHON3_DIR=$python3_dir" >> $GITHUB_ENV
@@ -607,19 +575,6 @@ jobs:
             src\vim -u NONE -i NONE --not-a-term -esNX -V1 -S ci/if_ver-1.vim -c quit
             src\vim -u NONE -i NONE --not-a-term -esNX -V1 -S ci/if_ver-2.vim -c quit
           )
-
-      #- name: Prepare Artifact
-      #  shell: cmd
-      #  run: |
-      #    mkdir artifacts
-      #    copy src\*vim.exe artifacts
-      #    copy src\vim*.dll artifacts
-      #
-      #- name: Upload Artifact
-      #  uses: actions/upload-artifact@v1
-      #  with:
-      #    name: vim${{ matrix.bits }}-${{ matrix.toolchain }}
-      #    path: ./artifacts
 
       - name: Test and show the result of testing gVim
         if: matrix.GUI == 'yes' || matrix.VIMDLL == 'yes'
