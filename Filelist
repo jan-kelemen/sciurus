@@ -3,20 +3,10 @@
 
 # source files for all source archives
 SRC_ALL =	\
-		.cirrus.yml \
 		.gitattributes \
-		.github/CODEOWNERS \
-		.github/ISSUE_TEMPLATE/bug_report.yml \
-		.github/ISSUE_TEMPLATE/feature_request.md \
 		.github/workflows/ci.yml \
-		.github/workflows/codeql-analysis.yml \
-		.github/workflows/coverity.yml \
 		.github/dependabot.yml \
 		.gitignore \
-		.hgignore \
-		.appveyor.yml \
-		.codecov.yml \
-		ci/appveyor.bat \
 		ci/config.mk*.sed \
 		ci/if_ver*.vim \
 		ci/setup-xvfb.sh \
@@ -542,7 +532,6 @@ SRC_DOS =	\
 		src/Make_cyg_ming.mak \
 		src/Make_ming.mak \
 		src/Make_mvc.mak \
-		tools/rename.bat \
 		src/bigvim.bat \
 		src/bigvim64.bat \
 		src/msvc-latest.bat \
@@ -591,10 +580,6 @@ SRC_DOS =	\
 		src/tee/tee.c \
 		src/xxd/Make_ming.mak \
 		src/xxd/Make_mvc.mak \
-		nsis/gvim.nsi \
-		nsis/gvim_version.nsh \
-		nsis/README.txt \
-		nsis/lang/*.nsi \
 		uninstall.txt \
 
 # source files for DOS without CR/LF translation (also in the extra archive)
@@ -612,7 +597,6 @@ SRC_DOS_BIN =	\
 		src/xpm/x86/lib-vc14/libXpm.lib \
 		src/xpm/x86/lib/libXpm.a \
 		runtime/bitmaps/vim.ico \
-		nsis/icons.zip \
 
 # source files for Amiga, DOS, etc. (also in the extra archive)
 SRC_AMI_DOS =	\
@@ -661,7 +645,6 @@ SRC_VMS =	\
 		src/testdir/Make_vms.mms \
 		src/testdir/vms.vim \
 		src/xxd/Make_vms.mms \
-		vimtutor.com \
 
 # source files for QNX (in the extra archive)
 SRC_QNX =	\
@@ -864,7 +847,6 @@ RT_DOS =	\
 		runtime/doc/Make_mvc.mak \
 		runtime/tutor/Make_mvc.mak \
 		runtime/lang/Make_mvc.mak \
-		vimtutor.bat \
 
 # DOS runtime without CR-LF translation (also in the extra archive)
 RT_DOS_BIN =	\
@@ -1079,11 +1061,6 @@ LANG_DOS = \
 # be excluded from distribution tarballs and the like.
 # This excludes them from the CI check for unlisted files.
 IGNORE = \
-		.appveyor.yml \
-		.github/FUNDING.yml \
-		.github/labeler.yml \
-		.github/workflows/label.yml \
-		SECURITY.md \
 		ci/unlisted.make \
 		src/libvterm/CODE-MAP \
 		runtime/syntax/testdir/input/html_html \
