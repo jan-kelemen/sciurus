@@ -19,6 +19,7 @@ static void win_exchange(long);
 static void win_rotate(int, int);
 static void win_totop(int size, int flags);
 static void win_equal_rec(win_T *next_curwin, int current, frame_T *topfr, int dir, int col, int row, int width, int height);
+static void trigger_winnewpre(void);
 static void trigger_winclosed(win_T *win);
 static win_T *win_free_mem(win_T *win, int *dirp, tabpage_T *tp);
 static frame_T *win_altframe(win_T *win, tabpage_T *tp);
@@ -954,6 +955,8 @@ win_split_ins(
 
     // Do not redraw here, curwin->w_buffer may be invalid.
     ++RedrawingDisabled;
+
+    trigger_winnewpre();
 
     if (flags & WSP_TOP)
 	oldwin = firstwin;
@@ -2485,7 +2488,7 @@ close_windows(
  * "aucmd_win[]").
  * Returns FALSE if there is a window, possibly in another tab page.
  */
-    static int
+    int
 last_window(void)
 {
     return (one_window() && first_tabpage->tp_next == NULL);
@@ -2884,6 +2887,14 @@ win_close(win_T *win, int free_buf)
 
     redraw_all_later(UPD_NOT_VALID);
     return OK;
+}
+
+    static void
+trigger_winnewpre(void)
+{
+    window_layout_lock();
+    apply_autocmds(EVENT_WINNEWPRE, NULL, NULL, FALSE, NULL);
+    window_layout_unlock();
 }
 
     static void
@@ -3375,6 +3386,8 @@ win_free_all(void)
 
     // avoid an error for switching tabpage with the cmdline window open
     cmdwin_type = 0;
+    cmdwin_buf = NULL;
+    cmdwin_win = NULL;
 
     while (first_tabpage->tp_next != NULL)
 	tabpage_close(TRUE);
@@ -4475,6 +4488,9 @@ win_new_tabpage(int after)
 
     newtp->tp_localdir = (tp->tp_localdir == NULL)
 				    ? NULL : vim_strsave(tp->tp_localdir);
+
+    trigger_winnewpre();
+
     // Create a new empty window.
     if (win_alloc_firstwin(tp->tp_curwin) == OK)
     {

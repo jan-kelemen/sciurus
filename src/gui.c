@@ -1589,8 +1589,11 @@ again:
     // Only comparing Rows and Columns may be sufficient, but let's stay on
     // the safe side.
     if (gui.num_rows != screen_Rows || gui.num_cols != screen_Columns
-	    || gui.num_rows != Rows || gui.num_cols != Columns)
+	    || gui.num_rows != Rows || gui.num_cols != Columns || gui.force_redraw)
+    {
 	shell_resized();
+	gui.force_redraw = 0;
+    }
 
 #ifdef FEAT_GUI_HAIKU
     vim_unlock_screen();
@@ -3980,7 +3983,7 @@ gui_drag_scrollbar(scrollbar_T *sb, long value, int still_dragging)
     if (hold_gui_events)
 	return;
 
-    if (cmdwin_type != 0 && sb->wp != curwin)
+    if (cmdwin_type != 0 && sb->wp != cmdwin_win)
 	return;
 
     if (still_dragging)

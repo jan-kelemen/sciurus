@@ -317,6 +317,9 @@ au BufRead,BufNewFile *.chai			setf chaiscript
 " Chatito
 au BufNewFile,BufRead *.chatito			setf chatito
 
+" Chuck
+au BufNewFile,BufRead *.ck			setf chuck
+
 " Comshare Dimension Definition Language
 au BufNewFile,BufRead *.cdl			setf cdl
 
@@ -1240,6 +1243,9 @@ au BufNewFile,BufRead *.lua			setf lua
 
 " Luau
 au BufNewFile,BufRead *.luau		setf luau
+
+" Luau config
+au BufNewFile,BufRead .luaurc		setf jsonc
 
 " Luacheck
 au BufNewFile,BufRead .luacheckrc		setf lua
