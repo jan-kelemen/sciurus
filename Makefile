@@ -81,11 +81,6 @@ syntaxtest:
 #		gvim##.zip		binary for GUI Win32
 #		gvim##ole.zip		OLE exe for Win32 GUI
 #
-# OBSOLETE
-# amisrc	vim##src.tgz		sources for Amiga
-# amirt		vim##rt.tgz		runtime for Amiga
-# amibin	vim##bin.tgz		binary for Amiga
-#
 # farsi		farsi##.zip		Farsi fonts
 #
 #    All output files are created in the "dist" directory.  Existing files are
@@ -131,14 +126,6 @@ MINOR = 1
 # - Delete all *~, *.sw?, *.orig, *.rej files
 # - "make unixall", "make html"
 # - Make diff files against the previous release: "makediff7 7.1 7.2"
-#
-# Amiga: (OBSOLETE, Amiga files are no longer distributed)
-# - "make amisrc", move the archive to the Amiga and compile:
-#   "make -f Make_manx.mak" (will use "big" features by default).
-# - Run the tests: "make -f Make_manx.mak test"
-# - Place the executables Vim and Xxd in this directory (set the executable
-#   flag).
-# - "make amirt", "make amibin".
 #
 # MS-Windows:
 # - Run make on Unix to update the ".mo" files.
@@ -344,68 +331,6 @@ unixall: dist prepare
 # Create the archive.
 	cd dist && tar cf $(VIMVER).tar $(VIMRTDIR)
 	bzip2 dist/$(VIMVER).tar
-
-# Amiga runtime - OBSOLETE
-amirt: dist prepare
-	-rm -f dist/vim$(VERSION)rt.tar.gz
-	-rm -rf dist/Vim
-	mkdir dist/Vim
-	mkdir dist/Vim/$(VIMRTDIR)
-	tar cf - \
-		$(ROOT_AMI) \
-		$(RT_ALL) \
-		$(RT_ALL_BIN) \
-		$(RT_SCRIPTS) \
-		$(RT_AMI) \
-		$(RT_NO_UNIX) \
-		$(RT_AMI_DOS) \
-		| (cd dist/Vim/$(VIMRTDIR); tar xf -)
-	-rm $(IN_README_DIR)
-	mv dist/Vim/$(VIMRTDIR)/vimdir.info dist/Vim.info
-	mv dist/Vim/$(VIMRTDIR)/runtime.info dist/Vim/$(VIMRTDIR).info
-	mv dist/Vim/$(VIMRTDIR)/runtime/* dist/Vim/$(VIMRTDIR)
-	rmdir dist/Vim/$(VIMRTDIR)/runtime
-	cd dist && tar cf vim$(VERSION)rt.tar Vim Vim.info
-	gzip -9 dist/vim$(VERSION)rt.tar
-	mv dist/vim$(VERSION)rt.tar.gz dist/vim$(VERSION)rt.tgz
-
-# Amiga binaries - OBSOLETE
-amibin: dist prepare
-	-rm -f dist/vim$(VERSION)bin.tar.gz
-	-rm -rf dist/Vim
-	mkdir dist/Vim
-	mkdir dist/Vim/$(VIMRTDIR)
-	tar cf - \
-		$(ROOT_AMI) \
-		$(BIN_AMI) \
-		Vim \
-		Xxd \
-		| (cd dist/Vim/$(VIMRTDIR); tar xf -)
-	-rm $(IN_README_DIR)
-	mv dist/Vim/$(VIMRTDIR)/vimdir.info dist/Vim.info
-	mv dist/Vim/$(VIMRTDIR)/runtime.info dist/Vim/$(VIMRTDIR).info
-	cd dist && tar cf vim$(VERSION)bin.tar Vim Vim.info
-	gzip -9 dist/vim$(VERSION)bin.tar
-	mv dist/vim$(VERSION)bin.tar.gz dist/vim$(VERSION)bin.tgz
-
-# Amiga sources - OBSOLETE
-amisrc: dist prepare
-	-rm -f dist/vim$(VERSION)src.tar.gz
-	-rm -rf dist/Vim
-	mkdir dist/Vim
-	mkdir dist/Vim/$(VIMRTDIR)
-	tar cf - \
-		$(ROOT_AMI) \
-		$(SRC_ALL) \
-		$(SRC_AMI) \
-		$(SRC_AMI_DOS) \
-		| (cd dist/Vim/$(VIMRTDIR); tar xf -)
-	-rm $(IN_README_DIR)
-	mv dist/Vim/$(VIMRTDIR)/vimdir.info dist/Vim.info
-	mv dist/Vim/$(VIMRTDIR)/runtime.info dist/Vim/$(VIMRTDIR).info
-	cd dist && tar cf vim$(VERSION)src.tar Vim Vim.info
-	gzip -9 dist/vim$(VERSION)src.tar
-	mv dist/vim$(VERSION)src.tar.gz dist/vim$(VERSION)src.tgz
 
 no_title.vim: Makefile
 	echo "set notitle noicon nocp nomodeline viminfo=" >no_title.vim

@@ -1226,7 +1226,6 @@ all:	$(MAIN_TARGET) \
 	vimrun.exe \
 	install.exe \
 	uninstall.exe \
-	xxd/xxd.exe \
 	tee/tee.exe \
 	GvimExt/gvimext.dll
 
@@ -1290,11 +1289,6 @@ uninstall.exe: uninstall.c dosinst.h version.h
 vimrun.exe: vimrun.c
 	$(CC) /nologo -DNDEBUG vimrun.c -link -subsystem:$(SUBSYSTEM_TOOLS)
 
-xxd/xxd.exe: xxd/xxd.c
-	cd xxd
-	$(MAKE) /NOLOGO -f Make_mvc.mak $(MAKEFLAGS_TOOLS)
-	cd ..
-
 tee/tee.exe: tee/tee.c
 	cd tee
 	$(MAKE) /NOLOGO -f Make_mvc.mak $(MAKEFLAGS_TOOLS)
@@ -1336,9 +1330,6 @@ clean: testclean
 	- if exist if_perl.c del if_perl.c
 	- if exist auto\if_perl.c del auto\if_perl.c
 	- if exist dosinst.exe del dosinst.exe
-	cd xxd
-	$(MAKE) /NOLOGO -f Make_mvc.mak clean
-	cd ..
 	cd tee
 	$(MAKE) /NOLOGO -f Make_mvc.mak clean
 	cd ..

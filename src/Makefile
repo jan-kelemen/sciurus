@@ -946,9 +946,6 @@ EVIMTARGET	= $(EVIMNAME)$(LNKEXT)
 EVIEWNAME	= e$(VIEWNAME)
 EVIEWTARGET	= $(EVIEWNAME)$(LNKEXT)
 
-### Names of the tools that are also made  {{{1
-TOOLS = xxd/xxd$(EXEEXT)
-
 ### Installation directories.  The defaults come from configure. {{{1
 #
 ### prefix	the top directory for the data (default "/usr/local")
@@ -2000,31 +1997,6 @@ reconfig: scratch clean
 	$(MAKE) -f Makefile config
 	$(MAKE) -f Makefile all
 
-# Run autoconf to produce auto/configure.
-# Note:
-# - DO NOT RUN autoconf MANUALLY!  It will overwrite ./configure instead of
-#   producing auto/configure.
-# - autoconf is not run automatically, because a patch usually changes both
-#   configure.ac and auto/configure but can't update the timestamps.  People
-#   who do not have (the correct version of) autoconf would run into trouble.
-#
-# Two tricks are required to make autoconf put its output in the "auto" dir:
-# - Temporarily move the ./configure script to ./configure.save.  Don't
-#   overwrite it, it's probably the result of an aborted autoconf.
-# - Use sed to change ./config.log to auto/config.log in the configure script.
-# Autoconf 2.5x (2.59 at least) produces a few more files that we need to take
-# care of:
-# - autom4te.cache directory is created and not cleaned up.  Delete it.
-# - Uses ">config.log" instead of "./config.log".
-autoconf:
-	if test ! -f configure.save; then mv configure configure.save; fi
-	$(AUTOCONF)
-	sed -e 's+>config.log+>auto/config.log+' -e 's+\./config.log+auto/config.log+' configure > auto/configure
-	chmod 755 auto/configure
-	mv -f configure.save configure
-	-rm -rf autom4te.cache
-	-rm -f auto/config.status auto/config.cache
-
 # Run vim script to generate the Ex command lookup table.
 # This only needs to be run when a command name has been added or changed.
 # If this fails because you don't have Vim yet, first build and install Vim
@@ -2060,10 +2032,6 @@ $(VIMTARGET): auto/config.mk $(OBJ) objects/version.o
 		MAKE="$(MAKE)" LINK_AS_NEEDED=$(LINK_AS_NEEDED) \
 		PROG="vim" \
 		sh $(srcdir)/link.sh
-
-xxd/xxd$(EXEEXT): xxd/xxd.c
-	cd xxd; CC="$(CC)" CFLAGS="$(CPPFLAGS) $(CFLAGS)" LDFLAGS="$(LDFLAGS)" \
-		$(MAKE) -f Makefile
 
 # Build the language specific files if they were unpacked.
 # Generate the converted .mo files separately, it's no problem if this fails.
@@ -2157,7 +2125,7 @@ tags TAGS: notags
 csclean:
 	-rm -vf cscope.out
 cscope.out:
-	cscope -bv ./*.[ch] ./*.cpp ./if_perl.xs auto/*.h auto/pathdef.c proto/*.pro xxd/xxd.c
+	cscope -bv ./*.[ch] ./*.cpp ./if_perl.xs auto/*.h auto/pathdef.c proto/*.pro
 cscope: csclean cscope.out  ;
 
 # Make a highlight file for types.  Requires Exuberant ctags and awk
@@ -2480,19 +2448,6 @@ installspell: $(DEST_VIM) $(DEST_RT) $(DEST_SPELL)
 	  chmod $(HELPMOD) $(DEST_SPELL)/*.spl $(DEST_SPELL)/*.sug $(DEST_SPELL)/*.vim; \
 	fi
 
-# install helper program xxd
-installtools: $(TOOLS) $(DESTDIR)$(exec_prefix) $(DEST_BIN) \
-		$(TOOLSSOURCE) $(DEST_VIM) $(DEST_RT) $(DEST_TOOLS) \
-		$(INSTALL_TOOL_LANGS)
-	if test -f $(DEST_BIN)/xxd$(EXEEXT); then \
-	  mv -f $(DEST_BIN)/xxd$(EXEEXT) $(DEST_BIN)/xxd.rm; \
-	  rm -f $(DEST_BIN)/xxd.rm; \
-	fi
-	$(INSTALL_PROG) xxd/xxd$(EXEEXT) $(DEST_BIN)
-	$(STRIP) $(DEST_BIN)/xxd$(EXEEXT)
-	chmod $(BINMOD) $(DEST_BIN)/xxd$(EXEEXT)
-	-$(SHELL) ./installman.sh xxd $(DEST_MAN) "" $(INSTALLMANARGS)
-
 # install the runtime tools
 	$(INSTALL_DATA_R) $(TOOLSSOURCE)/* $(DEST_TOOLS)
 # When using CVS some CVS directories might have been copied.
@@ -2507,31 +2462,6 @@ installtools: $(TOOLS) $(DESTDIR)$(exec_prefix) $(DEST_BIN) \
 		awkpath=`./which.sh gawk` && sed -e "s+/usr/bin/nawk+$$awkpath+" $(TOOLSSOURCE)/mve.awk >$(DEST_TOOLS)/mve.awk; if test -z "$$awkpath"; then \
 		awkpath=`./which.sh awk` && sed -e "s+/usr/bin/nawk+$$awkpath+" $(TOOLSSOURCE)/mve.awk >$(DEST_TOOLS)/mve.awk; fi; fi
 	-chmod $(SCRIPTMOD) `grep -l "^#!" $(DEST_TOOLS)/*`
-
-# install the language specific files for tools, if they were unpacked
-install-tool-languages:
-	-$(SHELL) ./installman.sh xxd $(DEST_MAN_DA) "-da" $(INSTALLMANARGS)
-	-$(SHELL) ./installman.sh xxd $(DEST_MAN_DA_I) "-da" $(INSTALLMANARGS)
-	-$(SHELL) ./installman.sh xxd $(DEST_MAN_DA_U) "-da.UTF-8" $(INSTALLMANARGS)
-	-$(SHELL) ./installman.sh xxd $(DEST_MAN_DE) "-de" $(INSTALLMANARGS)
-	-$(SHELL) ./installman.sh xxd $(DEST_MAN_DE_I) "-de" $(INSTALLMANARGS)
-	-$(SHELL) ./installman.sh xxd $(DEST_MAN_DE_U) "-de.UTF-8" $(INSTALLMANARGS)
-	-$(SHELL) ./installman.sh xxd $(DEST_MAN_FR) "-fr" $(INSTALLMANARGS)
-	-$(SHELL) ./installman.sh xxd $(DEST_MAN_FR_I) "-fr" $(INSTALLMANARGS)
-	-$(SHELL) ./installman.sh xxd $(DEST_MAN_FR_U) "-fr.UTF-8" $(INSTALLMANARGS)
-	-$(SHELL) ./installman.sh xxd $(DEST_MAN_IT) "-it" $(INSTALLMANARGS)
-	-$(SHELL) ./installman.sh xxd $(DEST_MAN_IT_I) "-it" $(INSTALLMANARGS)
-	-$(SHELL) ./installman.sh xxd $(DEST_MAN_IT_U) "-it.UTF-8" $(INSTALLMANARGS)
-	-$(SHELL) ./installman.sh xxd $(DEST_MAN_JA_U) "-ja.UTF-8" $(INSTALLMANARGS)
-	-$(SHELL) ./installman.sh xxd $(DEST_MAN_PL) "-pl" $(INSTALLMANARGS)
-	-$(SHELL) ./installman.sh xxd $(DEST_MAN_PL_I) "-pl" $(INSTALLMANARGS)
-	-$(SHELL) ./installman.sh xxd $(DEST_MAN_PL_U) "-pl.UTF-8" $(INSTALLMANARGS)
-	-$(SHELL) ./installman.sh xxd $(DEST_MAN_RU) "-ru" $(INSTALLMANARGS)
-	-$(SHELL) ./installman.sh xxd $(DEST_MAN_RU_U) "-ru.UTF-8" $(INSTALLMANARGS)
-	-$(SHELL) ./installman.sh xxd $(DEST_MAN_TR) "-tr" $(INSTALLMANARGS)
-	-$(SHELL) ./installman.sh xxd $(DEST_MAN_TR_I) "-tr" $(INSTALLMANARGS)
-	-$(SHELL) ./installman.sh xxd $(DEST_MAN_TR_U) "-tr.UTF-8" $(INSTALLMANARGS)
-
 
 # install the language specific files, if they were unpacked
 install-languages: languages $(DEST_LANG) $(DEST_KMAP)
@@ -2751,7 +2681,6 @@ uninstall: uninstall_runtime
 	-rm -f $(DEST_BIN)/$(RGVIMTARGET) $(DEST_BIN)/$(RGVIEWTARGET)
 	-rm -f $(DEST_BIN)/$(VIMDIFFTARGET) $(DEST_BIN)/$(GVIMDIFFTARGET)
 	-rm -f $(DEST_BIN)/$(EVIMTARGET) $(DEST_BIN)/$(EVIEWTARGET)
-	-rm -f $(DEST_BIN)/xxd$(EXEEXT)
 
 # Note: the "rmdir" will fail if any files were added after "make install"
 uninstall_runtime:
@@ -2821,14 +2750,6 @@ uninstall_runtime:
 		$(DEST_MAN_TR_I) $(INSTALLMLARGS)
 	-$(SHELL) ./installml.sh uninstall "$(GUI_MAN_TARGETS)" \
 		$(DEST_MAN_TR_U) $(INSTALLMLARGS)
-	-rm -f $(DEST_MAN)/xxd.1
-	-rm -f $(DEST_MAN_DA)/xxd.1 $(DEST_MAN_DA_I)/xxd.1 $(DEST_MAN_DA_U)/xxd.1
-	-rm -f $(DEST_MAN_DE)/xxd.1 $(DEST_MAN_DE_I)/xxd.1 $(DEST_MAN_DE_U)/xxd.1
-	-rm -f $(DEST_MAN_FR)/xxd.1 $(DEST_MAN_FR_I)/xxd.1 $(DEST_MAN_FR_U)/xxd.1
-	-rm -f $(DEST_MAN_IT)/xxd.1 $(DEST_MAN_IT_I)/xxd.1 $(DEST_MAN_IT_U)/xxd.1
-	-rm -f $(DEST_MAN_JA_U)/xxd.1
-	-rm -f $(DEST_MAN_PL)/xxd.1 $(DEST_MAN_PL_I)/xxd.1 $(DEST_MAN_PL_U)/xxd.1
-	-rm -f $(DEST_MAN_RU)/xxd.1 $(DEST_MAN_RU_U)/xxd.1
 	-rm -f $(DEST_HELP)/*.txt $(DEST_HELP)/tags $(DEST_HELP)/*.pl
 	-rm -f $(DEST_HELP)/*.??x $(DEST_HELP)/tags-??
 	-rm -f $(SYS_MENU_FILE) $(SYS_SYNMENU_FILE) $(SYS_DELMENU_FILE)
@@ -2871,7 +2792,7 @@ uninstall_runtime:
 # Clean up all the files that have been produced, except configure's.
 # We support common typing mistakes for Juergen! :-)
 clean celan: testclean
-	-rm -f *.o core $(VIMTARGET).core $(VIMTARGET) vim xxd/*.o
+	-rm -f *.o core $(VIMTARGET).core $(VIMTARGET) vim 
 	-rm -rf objects
 	-rm -f $(TOOLS) auto/osdef.h auto/pathdef.c auto/if_perl.c auto/gui_gtk_gresources.c auto/gui_gtk_gresources.h auto/os_haiku.rdef
 	-rm -f conftest* *~ auto/link.sed
@@ -2883,75 +2804,6 @@ clean celan: testclean
 	if test -d $(PODIR); then \
 		cd $(PODIR); $(MAKE) prefix=$(DESTDIR)$(prefix) clean; \
 	fi
-
-# Make a shadow directory for compilation on another system or with different
-# features:
-#  % make shadow
-#  % cd shadow
-#  edit configuration in src/shadow/Makefile
-#  % make
-#
-# Alternatively use a link for the Makefile and run configure with flags in
-# another way.  When new source files are added use "shadowupdate":
-#  % cd shadow
-#  % rm Makefile
-#  % ln -s ../Makefile .
-#  % ./configure {options}
-#  % make
-# And later:
-#  % git pull
-#  % make distclean shadowupdate
-#  % ./configure {options}
-#  % make
-SHADOWDIR = shadow
-
-LINKEDFILES = ../*.[chm] ../*.cc ../*.in ../*.sh ../*.xs ../*.xbm ../gui_gtk_res.xml ../toolcheck ../proto ../libvterm ../vimtutor ../gvimtutor ../install-sh ../Make_all.mak
-
-shadow:	runtime pixmaps
-	$(MKDIR_P) $(SHADOWDIR)
-	cd $(SHADOWDIR); ln -s $(LINKEDFILES) .
-	mkdir $(SHADOWDIR)/auto
-	cd $(SHADOWDIR)/auto; ln -s ../../auto/configure .
-	$(MKDIR_P) $(SHADOWDIR)/po
-	cd $(SHADOWDIR)/po; ln -s ../../po/*.po ../../po/*.mak ../../po/*.vim ../../po/*.in ../../po/Makefile ../../po/*.c .
-	cd $(SHADOWDIR); rm -f auto/link.sed
-	cp Makefile configure $(SHADOWDIR)
-	rm -f $(SHADOWDIR)/auto/config.mk $(SHADOWDIR)/config.mk.dist
-	cp config.mk.dist $(SHADOWDIR)/auto/config.mk
-	cp config.mk.dist $(SHADOWDIR)
-	$(MKDIR_P) $(SHADOWDIR)/xxd
-	cd $(SHADOWDIR)/xxd; ln -s ../../xxd/*.[ch] ../../xxd/Make* .
-	$(MKDIR_P) $(SHADOWDIR)/xdiff
-	cd $(SHADOWDIR)/xdiff; ln -s ../../xdiff/*.[ch] .
-	$(MKDIR_P) $(SHADOWDIR)/testdir
-	cd $(SHADOWDIR)/testdir; ln -s ../../testdir/Makefile \
-				 ../../testdir/Make_all.mak \
-				 ../../testdir/README.txt \
-				 ../../testdir/*.in \
-				 ../../testdir/*.vim \
-				 ../../testdir/*.py \
-				 ../../testdir/python* \
-				 ../../testdir/pyxfile \
-				 ../../testdir/sautest \
-				 ../../testdir/samples \
-				 ../../testdir/dumps \
-				 ../../testdir/*.ok \
-				 ../../testdir/testluaplugin \
-				 .
-
-# After updating Vim new files may have been created, use this to refresh the
-# symbolic links in the shadow directory. This isn't guaranteed to catch all
-# changes, running "make shadow" again might sometimes be needed.
-shadowupdate:
-	ln -sf $(LINKEDFILES) .
-
-# Link needed for doing "make install" in a shadow directory.
-runtime:
-	-ln -s ../runtime .
-
-# Link needed for doing "make" using GTK in a shadow directory.
-pixmaps:
-	-ln -s ../pixmaps .
 
 # Update the synmenu.vim file with the latest Syntax menu.
 # This is only needed when runtime/makemenu.vim was changed.

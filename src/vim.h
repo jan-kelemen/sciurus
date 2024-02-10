@@ -276,17 +276,6 @@
 # define SUN_SYSTEM
 #endif
 
-// If we're compiling in C++ (currently only KVim), the system
-// headers must have the correct prototypes or nothing will build.
-// Conversely, our prototypes might clash due to throw() specifiers and
-// cause compilation failures even though the headers are correct.  For
-// a concrete example, gcc-3.2 enforces exception specifications, and
-// glibc-2.2.5 has them in their system headers.
-#if !defined(__cplusplus) && defined(UNIX) \
-	&& !defined(MACOS_X) // MACOS_X doesn't yet support osdef.h
-# include "auto/osdef.h"	// bring missing declarations in
-#endif
-
 #ifdef AMIGA
 # include "os_amiga.h"
 #endif

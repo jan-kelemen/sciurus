@@ -23,10 +23,6 @@ jobs:
       CC: ${{ matrix.compiler }}
       GCC_VER: 13
       CLANG_VER: 17
-      TEST: test
-      SRCDIR: ./src
-      LEAK_CFLAGS: -DEXITFREE
-      LOG_DIR: ${{ github.workspace }}/logs
       TERM: xterm
       DISPLAY: ':99'
       DEBIAN_FRONTEND: noninteractive
@@ -34,54 +30,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        features: [tiny, normal, huge]
-        compiler: [clang, gcc]
-        extra: [[]]
-        # Only use non-native architecture when features != huge.
-        # features=huge tries to install python3-dev, which fails to install
-        # for the non-native architecture.
-        architecture: [native]
-        include:
-          - features: tiny
-            compiler: clang
-            extra: [nogui]
-          - features: tiny
-            compiler: gcc
-            extra: [nogui]
-          - features: huge
-            coverage: true
-          - features: huge
-            compiler: clang
-            interface: dynamic
-            python3: stable-abi
-          - features: huge
-            compiler: gcc
-            coverage: true
-            interface: dynamic
-            extra: [uchar, testgui]
-          - features: huge
-            compiler: clang
-            # Lua5.1 is the most widely used version (since it's what LuaJIT is
-            # compatible with), so ensure it works
-            lua_ver: '5.1'
-            extra: [asan]
-          - features: huge
-            compiler: gcc
-            coverage: true
-            extra: [unittests]
-          - features: normal
-            compiler: gcc
-            extra: [vimtags]
+        compiler: [gcc, clang]
 
     steps:
       - name: Checkout repository from github
         uses: actions/checkout@v4
-
-      - name: Check Filelist (for packaging)
-        run: |
-          # If any files in the repository are not listed in Filelist this will
-          # exit with an error code and list the missing entries.
-          make -f ci/unlisted.make
 
       - name: Install packages
         run: |
@@ -93,26 +46,169 @@ jobs:
             libncurses-dev:${{ matrix.architecture }} \
             libxt-dev:${{ matrix.architecture }} \
           )
-          if ${{ matrix.features == 'huge' }}; then
-            LUA_VER=${{ matrix.lua_ver || '5.4' }}
-            PKGS+=( \
-              autoconf \
-              gdb \
-              lcov \
-              libcanberra-dev \
-              libperl-dev \
-              python2-dev \
-              python3-dev \
-              liblua${LUA_VER}-dev \
-              lua${LUA_VER} \
-              ruby-dev \
-              tcl-dev \
-              cscope \
-              libsodium-dev \
-              attr \
-              libattr1-dev
-            )
-          fi
+          LUA_VER=${{ matrix.lua_ver || '5.4' }}
+          PKGS+=( \
+            autoconf \
+            gdb \
+            lcov \
+            libcanberra-dev \
+            libperl-dev \
+            python3-dev \
+            liblua${LUA_VER}-dev \
+            lua${LUA_VER} \
+            ruby-dev \
+            tcl-dev \
+            cscope \
+            libsodium-dev \
+            attr \
+            libattr1-dev
+          )
+          sudo apt-get update && sudo apt-get upgrade && sudo apt-get install -y "${PKGS[@]}"
+
+      - name: Install gcc-${{ env.GCC_VER }}
+        if:  matrix.compiler == 'gcc'
+        run: |
+          sudo apt-get install -y gcc-${{ env.GCC_VER }}:${{ matrix.architecture }}
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-${{ env.GCC_VER }} 100
+          sudo update-alternatives --set gcc /usr/bin/gcc-${{ env.GCC_VER }}
+
+      - name: Install clang-${{ env.CLANG_VER }}
+        if: matrix.compiler == 'clang'
+        run: |
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          . /etc/lsb-release
+          sudo add-apt-repository -y "deb http://apt.llvm.org/${DISTRIB_CODENAME}/ llvm-toolchain-${DISTRIB_CODENAME}-${{ env.CLANG_VER }} main"
+          sudo apt-get install -y clang-${{ env.CLANG_VER }} llvm-${{ env.CLANG_VER }}
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${{ env.CLANG_VER }} 100
+          sudo update-alternatives --set clang /usr/bin/clang-${{ env.CLANG_VER }}
+          sudo update-alternatives --install /usr/bin/llvm-cov llvm-cov /usr/bin/llvm-cov-${{ env.CLANG_VER }} 100
+          sudo update-alternatives --install /usr/bin/asan_symbolize asan_symbolize /usr/bin/asan_symbolize-${{ env.CLANG_VER }} 100
+
+      - name: Set up environment
+        run: |
+          mkdir -p "${HOME}/bin"
+          echo "${HOME}/bin" >> $GITHUB_PATH
+          (
+          echo "LINUX_VERSION=$(uname -r)"
+          echo "NPROC=$(getconf _NPROCESSORS_ONLN)"
+          echo "TMPDIR=${{ runner.temp }}"
+          ) >> $GITHUB_ENV
+
+      - name: Set up system
+        run: |
+          sudo sysctl -w net.ipv6.conf.lo.disable_ipv6=0
+          sudo usermod -a -G audio "${USER}"
+          sudo bash ci/setup-xvfb.sh
+
+      - name: Set up snd-dummy
+        env:
+          DEST_DIR: ${{ env.TMPDIR }}/linux-modules-extra-${{ env.LINUX_VERSION }}
+        uses: tecolicom/actions-use-apt-tools@main
+        with:
+          tools: linux-modules-extra-${{ env.LINUX_VERSION }}
+          path: "${DEST_DIR}"
+
+      - name: modprobe snd-dummy
+        run: |
+          sudo depmod --verbose
+          sudo modprobe --verbose snd-dummy || true
+
+      - name: Configure
+        run: |
+          ./configure --with-features=huge --disable-gui --disable-netbeans --with-vim-name=sciurus --with-modified-by="Jan Kelemen" --enable-fail-if-missing
+          cmake -S . -B build
+
+      - name: Build
+        run: |
+          cmake --build build
+
+      - name: Check version
+        run: |
+          ./build/src/sciurus --version
+          ./build/src/sciurus -u NONE -i NONE --not-a-term -esNX -V1 -S ci/if_ver-1.vim -c quit
+
+      - name: Unit test
+        if:  matrix.compiler == 'gcc'
+        working-directory: build
+        run: |
+          ctest || ctest --rerun-failed --output-on-failure
+
+  linux-orig:
+    runs-on: ubuntu-22.04
+
+    env:
+      CC: ${{ matrix.compiler }}
+      GCC_VER: 13
+      CLANG_VER: 17
+      TEST: test
+      SRCDIR: ./src
+      LEAK_CFLAGS: -DEXITFREE
+      LOG_DIR: ${{ github.workspace }}/logs
+      TERM: xterm
+      DISPLAY: ':99'
+      DEBIAN_FRONTEND: noninteractive
+
+    strategy:
+      fail-fast: false
+      matrix:
+        features: [huge]
+        compiler: [clang, gcc]
+        # nogui, uchar, testgui, unittests, vimtags, asan
+        extra: [[]] 
+        # Only use non-native architecture when features != huge.
+        # features=huge tries to install python3-dev, which fails to install
+        # for the non-native architecture.
+        architecture: [native]
+        include:
+          - features: huge
+            compiler: clang
+            interface: dynamic
+            python3: stable-abi
+          - features: huge
+            compiler: gcc
+            interface: dynamic
+            extra: [uchar, testgui]
+          - features: huge
+            compiler: clang
+            # Lua5.1 is the most widely used version (since it's what LuaJIT is
+            # compatible with), so ensure it works
+            lua_ver: '5.1'
+            extra: [asan]
+          - features: huge
+            compiler: gcc
+            extra: [unittests, vimtags, nogui]
+
+    steps:
+      - name: Checkout repository from github
+        uses: actions/checkout@v4
+
+      - name: Install packages
+        run: |
+          PKGS=( \
+            gettext \
+            libgtk2.0-dev:${{ matrix.architecture }} \
+            desktop-file-utils \
+            libtool-bin \
+            libncurses-dev:${{ matrix.architecture }} \
+            libxt-dev:${{ matrix.architecture }} \
+          )
+          LUA_VER=${{ matrix.lua_ver || '5.4' }}
+          PKGS+=( \
+            autoconf \
+            gdb \
+            lcov \
+            libcanberra-dev \
+            libperl-dev \
+            python3-dev \
+            liblua${LUA_VER}-dev \
+            lua${LUA_VER} \
+            ruby-dev \
+            tcl-dev \
+            cscope \
+            libsodium-dev \
+            attr \
+            libattr1-dev
+          )
           sudo apt-get update && sudo apt-get upgrade && sudo apt-get install -y "${PKGS[@]}"
 
       - name: Install gcc-${{ env.GCC_VER }}
@@ -144,62 +240,44 @@ jobs:
           echo "NPROC=$(getconf _NPROCESSORS_ONLN)"
           echo "TMPDIR=${{ runner.temp }}"
 
-          case "${{ matrix.features }}" in
-          tiny)
-            echo "TEST=testtiny"
-            if ${{ contains(matrix.extra, 'nogui') }}; then
-              echo "CONFOPT=--disable-gui"
-            fi
-            ;;
-          normal)
-            ;;
-          huge)
+          if ${{ contains(matrix.extra, 'vimtags') }}; then
+            echo "TEST=-C runtime/doc vimtags VIMEXE=../../${SRCDIR}/vim"
+          else
             echo "TEST=scripttests test_libvterm"
-            INTERFACE=${{ matrix.interface || 'yes' }}
-            if ${{ matrix.python3 == 'stable-abi' }}; then
-              PYTHON3_CONFOPT="--with-python3-stable-abi=3.8"
-            fi
-            echo "CONFOPT=--enable-perlinterp=${INTERFACE} --enable-pythoninterp=${INTERFACE} --enable-python3interp=${INTERFACE} --enable-rubyinterp=${INTERFACE} --enable-luainterp=${INTERFACE} --enable-tclinterp=${INTERFACE} ${PYTHON3_CONFOPT}"
-            ;;
-          esac
-
-          if ${{ matrix.coverage == true }}; then
-            CFLAGS="${CFLAGS} --coverage -DUSE_GCOV_FLUSH"
-            echo "LDFLAGS=--coverage"
           fi
+
+          INTERFACE=${{ matrix.interface || 'yes' }}
+          if ${{ matrix.python3 == 'stable-abi' }}; then
+            PYTHON3_CONFOPT="--with-python3-stable-abi=3.8"
+          fi
+
+          if ${{ contains(matrix.extra, 'nogui') }}; then
+            GUIOPT="--disable-gui"
+          fi
+
+          echo "CONFOPT=--enable-perlinterp=${INTERFACE} --enable-python3interp=${INTERFACE} --enable-rubyinterp=${INTERFACE} --enable-luainterp=${INTERFACE} --enable-tclinterp=${INTERFACE} ${PYTHON3_CONFOPT} ${GUIOPT}"
+
           if ${{ contains(matrix.extra, 'uchar') }}; then
             CFLAGS="${CFLAGS} -funsigned-char"
           fi
-          if ${{ contains(matrix.extra, 'testgui') }}; then
-            echo "TEST=-C src testgui"
-          fi
-          if ${{ contains(matrix.extra, 'unittests') }}; then
-            echo "TEST=unittests"
-          fi
+
           if ${{ contains(matrix.extra, 'asan') }}; then
             echo "SANITIZER_CFLAGS=-g -O1 -DABORT_ON_INTERNAL_ERROR -DEXITFREE -fsanitize-recover=all -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer"
             echo "ASAN_OPTIONS=print_stacktrace=1 log_path=${LOG_DIR}/asan"
             echo "UBSAN_OPTIONS=print_stacktrace=1 log_path=${LOG_DIR}/ubsan"
             echo "LSAN_OPTIONS=suppressions=${GITHUB_WORKSPACE}/src/testdir/lsan-suppress.txt"
           fi
-          if ${{ contains(matrix.extra, 'vimtags') }}; then
-            echo "TEST=-C runtime/doc vimtags VIMEXE=../../${SRCDIR}/vim"
-          fi
+
           echo "CFLAGS=${CFLAGS}"
           ) >> $GITHUB_ENV
 
       - name: Set up system
         run: |
-          if [[ ${CC} = clang ]]; then
-            # Use llvm-cov instead of gcov when compiler is clang.
-            ln -fs /usr/bin/llvm-cov ${HOME}/bin/gcov
-          fi
           sudo sysctl -w net.ipv6.conf.lo.disable_ipv6=0
           sudo usermod -a -G audio "${USER}"
           sudo bash ci/setup-xvfb.sh
 
       - name: Set up snd-dummy
-        if: (!(contains(matrix.extra, 'unittests') || contains(matrix.extra, 'vimtags')))
         env:
           DEST_DIR: ${{ env.TMPDIR }}/linux-modules-extra-${{ env.LINUX_VERSION }}
         uses: tecolicom/actions-use-apt-tools@main
@@ -208,15 +286,9 @@ jobs:
           path: "${DEST_DIR}"
 
       - name: modprobe snd-dummy
-        if: (!(contains(matrix.extra, 'unittests') || contains(matrix.extra, 'vimtags')))
         run: |
           sudo depmod --verbose
           sudo modprobe --verbose snd-dummy || true
-
-      - name: Check autoconf
-        if: contains(matrix.extra, 'unittests')
-        run: |
-          make -C src autoconf
 
       - name: Configure
         run: |
@@ -230,22 +302,33 @@ jobs:
           fi
 
       - name: Build
-        if: (!contains(matrix.extra, 'unittests'))
         run: |
           make -j${NPROC}
 
       - name: Check version
-        if: (!contains(matrix.extra, 'unittests'))
         run: |
           "${SRCDIR}"/vim --version
           "${SRCDIR}"/vim -u NONE -i NONE --not-a-term -esNX -V1 -S ci/if_ver-1.vim -c quit
-          "${SRCDIR}"/vim -u NONE -i NONE --not-a-term -esNX -V1 -S ci/if_ver-2.vim -c quit
 
       - name: Test
         timeout-minutes: 25
         run: |
           do_test() { sg audio "sg $(id -gn) '$*'"; }
           do_test make ${TEST}
+
+      - name: Unit test
+        if: (contains(matrix.extra, 'unittests'))
+        timeout-minutes: 3
+        run: |
+          do_test() { sg audio "sg $(id -gn) '$*'"; }
+          do_test make unittests
+
+      - name: Test GUI 
+        if: (contains(matrix.extra, 'testgui'))
+        timeout-minutes: 25
+        run: |
+          do_test() { sg audio "sg $(id -gn) '$*'"; }
+          do_test make -C src testgui
 
       - name: Vim tags
         if: contains(matrix.extra, 'vimtags')
@@ -259,19 +342,6 @@ jobs:
             true
           )
 
-      - name: Generate gcov files
-        if: matrix.coverage
-        run: |
-          cd "${SRCDIR}"
-          find . -type f -name '*.gcno' -exec gcov -pb {} + || true
-
-      - name: Codecov
-        timeout-minutes: 20
-        if: matrix.coverage
-        uses: codecov/codecov-action@v4
-        with:
-          flags: linux,${{ matrix.features }}-${{ matrix.compiler }}-${{ matrix.extra }}
-
       - name: ASan logs
         if: contains(matrix.extra, 'asan') && !cancelled()
         run: |
@@ -279,7 +349,7 @@ jobs:
             asan_symbolize -l "$f"
             false # in order to fail a job
           done
-
+  
   macos:
     runs-on: macos-latest
 
@@ -293,14 +363,48 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        features: [tiny, normal, huge]
+        features: [huge]
+
+    steps:
+      - name: Checkout repository from github
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: |
+          ./configure --with-features=huge --disable-gui --disable-netbeans --disable-libsodium --with-vim-name=sciurus --with-modified-by="Jan Kelemen" --enable-fail-if-missing
+          cmake -S . -B build
+
+      - name: Build
+        env:
+          LC_ALL: C
+        run: |
+          cmake --build build
+
+      - name: Check version
+        run: |
+          ./build/src/sciurus --version
+          ./build/src/sciurus -u NONE -i NONE --not-a-term -esNX -V1 -S ci/if_ver-1.vim -c quit
+
+  macos-orig:
+    runs-on: macos-latest
+
+    env:
+      CC: clang
+      TEST: test
+      SRCDIR: ./src
+      LEAK_CFLAGS: -DEXITFREE
+      TERM: xterm
+
+    strategy:
+      fail-fast: false
+      matrix:
+        features: [huge]
 
     steps:
       - name: Checkout repository from github
         uses: actions/checkout@v4
 
       - name: Install packages
-        if: matrix.features == 'huge'
         run: |
           brew install lua
           echo "LUA_PREFIX=/usr/local" >> $GITHUB_ENV
@@ -309,17 +413,7 @@ jobs:
         run: |
           (
           echo "NPROC=$(getconf _NPROCESSORS_ONLN)"
-          case "${{ matrix.features }}" in
-          tiny)
-            echo "TEST=testtiny"
-            echo "CONFOPT=--disable-gui"
-            ;;
-          normal)
-            ;;
-          huge)
-            echo "CONFOPT=--enable-perlinterp --enable-python3interp --enable-rubyinterp --enable-luainterp --enable-tclinterp"
-            ;;
-          esac
+          echo "CONFOPT=--enable-perlinterp --enable-python3interp --enable-rubyinterp --enable-luainterp --enable-tclinterp"
           ) >> $GITHUB_ENV
 
       - name: Configure
@@ -345,7 +439,6 @@ jobs:
         run: |
           "${SRCDIR}"/vim --version
           "${SRCDIR}"/vim -u NONE -i NONE --not-a-term -esNX -V1 -S ci/if_ver-1.vim -c quit
-          "${SRCDIR}"/vim -u NONE -i NONE --not-a-term -esNX -V1 -S ci/if_ver-2.vim -c quit
 
       - name: Test
         timeout-minutes: 20
@@ -353,6 +446,39 @@ jobs:
           make ${TEST}
 
   windows:
+    runs-on: windows-2022
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { features: HUGE,   toolchain: msvc,  VIMDLL: no,  GUI: no,  arch: x64 }
+
+    steps:
+      - name: Initialize
+        id: init
+        shell: bash
+        run: |
+          # Show Windows version
+          cmd /c ver
+
+          git config --global core.autocrlf input
+      - name: Checkout repository from github
+        uses: actions/checkout@v4
+
+      - name: Build (MSVC)
+        shell: cmd
+        run: |
+          cmake -S . -B build
+          cmake --build build
+
+      - name: Check version
+        shell: cmd
+        run: |
+          build\src\Debug\sciurus --version || exit 1
+          build\src\Debug\sciurus -u NONE -i NONE --not-a-term -esNX -V1 -S ci/if_ver-1.vim -c quit
+
+  windows-orig:
     runs-on: windows-2022
 
     env:
@@ -365,10 +491,6 @@ jobs:
       LUA_DIR: D:\Lua
       # do not want \L to end up in pathdef.c and compiler complaining about unknown escape sequences \l
       LUA_DIR_SLASH: D:/Lua
-      # Python 2
-      PYTHON_VER: 27
-      PYTHON_VER_DOT: '2.7'
-      PYTHON_DIR: 'C:\Python27'
       # Python 3
       PYTHON3_VER: 311
       PYTHON3_VER_DOT: '3.11'
@@ -391,10 +513,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { features: HUGE,   toolchain: msvc,  VIMDLL: no,  GUI: no,  arch: x64, python3: stable }
+          - { features: HUGE,   toolchain: msvc,  VIMDLL: no,  GUI: yes,  arch: x64, python3: stable }
           - { features: HUGE,   toolchain: mingw, VIMDLL: yes, GUI: no,  arch: x64, coverage: yes }
-          - { features: NORMAL, toolchain: mingw, VIMDLL: no,  GUI: yes, arch: x64 }
-          - { features: TINY,   toolchain: msvc,  VIMDLL: yes, GUI: yes, arch: x64 }
 
     steps:
       - name: Initialize
@@ -414,9 +534,7 @@ jobs:
           echo "MSYSTEM=MINGW64" >> $GITHUB_ENV
 
           echo "VCVARSALL=$(vswhere -products \* -latest -property installationPath)\\VC\\Auxiliary\\Build\\vcvarsall.bat" >> $GITHUB_ENV
-          if ${{ matrix.features != 'TINY' }}; then
-            choco install python2 --no-progress
-          fi
+
           python3_dir=$(cat "/proc/$cygreg/HKEY_LOCAL_MACHINE/SOFTWARE/Python/PythonCore/${PYTHON3_VER_DOT}$pyreg/InstallPath/@")
           echo "PYTHON3_DIR=$python3_dir" >> $GITHUB_ENV
 
@@ -511,20 +629,13 @@ jobs:
           ) else (
             set PYTHON3_STABLE=no
           )
-          if "${{ matrix.features }}"=="HUGE" (
-            nmake -nologo -f Make_mvc.mak ^
-              FEATURES=${{ matrix.features }} ^
-              GUI=%GUI% IME=yes ICONV=yes VIMDLL=${{ matrix.VIMDLL }} ^
-              DYNAMIC_LUA=yes LUA=%LUA_DIR% ^
-              DYNAMIC_PYTHON=yes PYTHON=%PYTHON_DIR% ^
-              DYNAMIC_PYTHON3=yes PYTHON3=%PYTHON3_DIR% ^
-              DYNAMIC_PYTHON3_STABLE_ABI=%PYTHON3_STABLE% ^
-              DYNAMIC_SODIUM=yes SODIUM=%SODIUM_DIR%
-          ) else (
-            nmake -nologo -f Make_mvc.mak ^
-              FEATURES=${{ matrix.features }} ^
-              GUI=%GUI% IME=yes ICONV=yes VIMDLL=${{ matrix.VIMDLL }}
-          )
+          nmake -nologo -f Make_mvc.mak ^
+            FEATURES=${{ matrix.features }} ^
+            GUI=%GUI% IME=yes ICONV=yes VIMDLL=${{ matrix.VIMDLL }} ^
+            DYNAMIC_LUA=yes LUA=%LUA_DIR% ^
+            DYNAMIC_PYTHON3=yes PYTHON3=%PYTHON3_DIR% ^
+            DYNAMIC_PYTHON3_STABLE_ABI=%PYTHON3_STABLE% ^
+            DYNAMIC_SODIUM=yes SODIUM=%SODIUM_DIR%
 
       - name: Build (MinGW)
         if: matrix.toolchain == 'mingw'
@@ -541,22 +652,14 @@ jobs:
           else
             PYTHON3_STABLE=no
           fi
-          if [ "${{ matrix.features }}" = "HUGE" ]; then
-            mingw32-make -f Make_ming.mak -j2 \
-              FEATURES=${{ matrix.features }} \
-              GUI=$GUI IME=yes ICONV=yes VIMDLL=${{ matrix.VIMDLL }} \
-              DYNAMIC_LUA=yes LUA=${LUA_DIR_SLASH} \
-              DYNAMIC_PYTHON=yes PYTHON=${PYTHON_DIR} \
-              DYNAMIC_PYTHON3=yes PYTHON3=${PYTHON3_DIR} \
-              DYNAMIC_PYTHON3_STABLE_ABI=${PYTHON3_STABLE} \
-              DYNAMIC_SODIUM=yes SODIUM=${SODIUM_DIR} \
-              STATIC_STDCPLUS=yes COVERAGE=${{ matrix.coverage }}
-          else
-            mingw32-make -f Make_ming.mak -j2 \
-              FEATURES=${{ matrix.features }} \
-              GUI=$GUI IME=yes ICONV=yes VIMDLL=${{ matrix.VIMDLL }} \
-              STATIC_STDCPLUS=yes
-          fi
+          mingw32-make -f Make_ming.mak -j2 \
+            FEATURES=${{ matrix.features }} \
+            GUI=$GUI IME=yes ICONV=yes VIMDLL=${{ matrix.VIMDLL }} \
+            DYNAMIC_LUA=yes LUA=${LUA_DIR_SLASH} \
+            DYNAMIC_PYTHON3=yes PYTHON3=${PYTHON3_DIR} \
+            DYNAMIC_PYTHON3_STABLE_ABI=${PYTHON3_STABLE} \
+            DYNAMIC_SODIUM=yes SODIUM=${SODIUM_DIR} \
+            STATIC_STDCPLUS=yes
 
       - name: Check version
         shell: cmd
@@ -567,13 +670,11 @@ jobs:
             type version.txt
             echo.
             start /wait src\gvim -u NONE -i NONE -c "redir! > version.txt | so ci\if_ver-1.vim | q"
-            start /wait src\gvim -u NONE -i NONE -c "redir >> version.txt | so ci\if_ver-2.vim | q"
             type version.txt
             del version.txt
           ) else (
             src\vim --version || exit 1
             src\vim -u NONE -i NONE --not-a-term -esNX -V1 -S ci/if_ver-1.vim -c quit
-            src\vim -u NONE -i NONE --not-a-term -esNX -V1 -S ci/if_ver-2.vim -c quit
           )
 
       - name: Test and show the result of testing gVim
@@ -611,17 +712,3 @@ jobs:
             nmake -nologo -f Make_mvc.mak tiny VIMPROG=..\vim  || exit 1
           )
 
-      - name: Generate gcov files
-        if: matrix.coverage
-        shell: msys2 {0}
-        run: |
-          cd src
-          find . -type f -name '*.gcno' -exec gcov -pb {} + || true
-
-      - name: Codecov
-        timeout-minutes: 20
-        if: matrix.coverage
-        uses: codecov/codecov-action@v4
-        with:
-          directory: src
-          flags: windows,${{ matrix.toolchain }}-${{ matrix.arch }}-${{ matrix.features }}

@@ -1103,7 +1103,7 @@ endif
 # To increase the stack size to 16MB, uncomment the following line:
 #LFLAGS += -Wl,-stack -Wl,0x1000000
 
-all: $(MAIN_TARGET) vimrun.exe xxd/xxd.exe tee/tee.exe install.exe uninstall.exe GvimExt/gvimext.dll
+all: $(MAIN_TARGET) vimrun.exe tee/tee.exe install.exe uninstall.exe GvimExt/gvimext.dll
 
 vimrun.exe: vimrun.c
 	$(CC) $(CFLAGS) -o vimrun.exe vimrun.c $(LIB)
@@ -1142,9 +1142,6 @@ mpress: exes
 	mpress gvim.exe
 	mpress vim.exe
 
-xxd/xxd.exe: xxd/xxd.c
-	$(MAKE) -C xxd -f Make_ming.mak CC='$(CC)'
-
 tee/tee.exe: tee/tee.c
 	$(MAKE) -C tee -f Make_ming.mak CC='$(CC)'
 
@@ -1172,7 +1169,6 @@ ifdef MZSCHEME
 	-$(DEL) mzscheme_base.c
 endif
 	$(MAKE) -C GvimExt -f Make_ming.mak clean
-	$(MAKE) -C xxd -f Make_ming.mak clean
 	$(MAKE) -C tee -f Make_ming.mak clean
 
 # Run vim script to generate the Ex command lookup table.

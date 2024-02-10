@@ -160,7 +160,6 @@ SRC_ALL =	\
 		src/viminfo.c \
 		src/winclip.c \
 		src/window.c \
-		src/xxd/xxd.c \
 		src/testdir/gen_opt_test.vim \
 		src/testdir/README.txt \
 		src/testdir/Make_all.mak \
@@ -432,7 +431,6 @@ SRC_UNIX =	\
 		src/INSTALL \
 		src/INSTALLx.txt \
 		src/Makefile \
-		src/auto/configure \
 		src/config.h.in \
 		src/config.mk.dist \
 		src/config.mk.in \
@@ -481,7 +479,6 @@ SRC_UNIX =	\
 		src/vim_icon.xbm \
 		src/vim_mask.xbm \
 		src/which.sh \
-		src/xxd/Makefile \
 
 # source files for both DOS and Unix
 SRC_DOS_UNIX =	\
@@ -570,8 +567,6 @@ SRC_DOS =	\
 		src/tee/Make_mvc.mak \
 		src/tee/Makefile \
 		src/tee/tee.c \
-		src/xxd/Make_ming.mak \
-		src/xxd/Make_mvc.mak \
 		uninstall.txt \
 
 # source files for DOS without CR/LF translation (also in the extra archive)

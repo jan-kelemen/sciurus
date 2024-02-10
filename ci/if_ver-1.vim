@@ -20,6 +20,6 @@ if 1
   echo 'Tcl:'
   PrintVer tcl puts [info patchlevel]
 
-  echo 'Python 2:'
-  PrintVer python print sys.version
+  echo 'Python 3:'
+  PrintVer python3 print(sys.version)
 endif
