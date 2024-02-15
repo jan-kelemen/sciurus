@@ -248,6 +248,7 @@ NEW_TESTS = \
 	test_regexp_utf8 \
 	test_registers \
 	test_reltime \
+	test_remote \
 	test_rename \
 	test_restricted \
 	test_retab \

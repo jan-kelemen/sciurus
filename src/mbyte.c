@@ -3454,6 +3454,8 @@ static convertStruct toLower[] =
 	{0x1e900,0x1e921,1,34}
 };
 
+// Note: UnicodeData.txt does not define U+1E9E as being the corresponding upper
+// case letter for U+00DF (ß), however it is part of the toLower table
 static convertStruct toUpper[] =
 {
 	{0x61,0x7a,1,-32},
@@ -5613,7 +5615,8 @@ tv_nr_compare(const void *a1, const void *a2)
     listitem_T *li1 = *(listitem_T **)a1;
     listitem_T *li2 = *(listitem_T **)a2;
 
-    return li1->li_tv.vval.v_number - li2->li_tv.vval.v_number;
+    return li1->li_tv.vval.v_number == li2->li_tv.vval.v_number ? 0 :
+	li1->li_tv.vval.v_number > li2->li_tv.vval.v_number ? 1 : -1;
 }
 
     void
