@@ -38,7 +38,8 @@ def report(working_directory):
 
     run_result = subprocess.run(
             [vim_name, "-u", "NONE", "--noplugin", "--not-a-term",
-             "-S", "summarize.vim", "messages"], cwd=working_directory)
+             "-S", "summarize.vim", "messages",
+             "--cmd", """au SwapExists * let v:swapchoice = "e" """], cwd=working_directory, stdout=subprocess.DEVNULL)
 
     try:
         os.remove(working_directory, "starttime")
@@ -74,7 +75,8 @@ if __name__ == "__main__":
                 [vim_name, "-u", "unix.vim",
                  "-U", "NONE", "--noplugin",  "--not-a-term",
                  "-s", "dotest.in",
-                 "{}.in".format(test)], cwd=working_directory)
+                 "{}.in".format(test),
+                 "--cmd", """au SwapExists * let v:swapchoice = "e" """], cwd=working_directory, stdout=subprocess.DEVNULL)
 
         if run_result.returncode != 0:
             print(f"{test} exited with code: {run_result.returncode}")
