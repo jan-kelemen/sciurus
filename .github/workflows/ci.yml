@@ -21,18 +21,11 @@ jobs:
       CC: ${{ matrix.compiler }}
       GCC_VER: 13
       CLANG_VER: 18
-      TEST: test
-      SRCDIR: ./src
-      LEAK_CFLAGS: -DEXITFREE
-      LOG_DIR: ${{ github.workspace }}/logs
-      TERM: xterm
-      DISPLAY: ':99'
-      DEBIAN_FRONTEND: noninteractive
 
     strategy:
       fail-fast: false
       matrix:
-        features: [tiny]
+        features: [tiny, normal]
         compiler: [clang, gcc]
 
     steps:
@@ -60,7 +53,7 @@ jobs:
 
       - name: Configure
         run: |
-          ./configure --with-features=${{ matrix.features}} --disable-gui --enable-fail-if-missing
+          ./configure --with-features=${{ matrix.features }} --disable-gui --enable-fail-if-missing
 
       - name: Build
         run: |
