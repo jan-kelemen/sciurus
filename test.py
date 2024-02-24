@@ -390,16 +390,16 @@ def newtests(vim_name, working_directory, runtime, xxd_name):
         vimcmd = os.path.join(working_directory, "vimcmd")
         with open(vimcmd, "a") as cmd:
             cmd.write(f"{vim_name}\n")
-            cmd.write(f"VIMRUNTIME={runtime} {vim_name} -u unix.vim --gui-dialog-file guidialog")
+            cmd.write(f"VIMRUNTIME={runtime} {vim_name} -f -u unix.vim --gui-dialog-file guidialog")
 
         print(test)
         run_result = subprocess.run(
-                [vim_name, "-u", "unix.vim", "--gui-dialog-file", "guidialog",
+                [vim_name, "-f", "-u", "unix.vim", "--gui-dialog-file", "guidialog",
                  "-U", "NONE", "--noplugin",  "--not-a-term",
                  "-S", "runtest.vim", 
                  f"{test}.vim", "--cmd", """au SwapExists * let v:swapchoice = "e" """], 
                 cwd=working_directory, 
-                env={**os.environ, "TERM":"xterm", "DEBIAN_FRONTEND":"noninteractive", "VIMRUNTIME":runtime, **extra_env},
+                env={**os.environ, "TERM":"xterm", "DEBIAN_FRONTEND":"noninteractive", "VIMRUNTIME":runtime, "DISPLAY":":99", **extra_env},
                 stdout=output)
 
         os.remove(vimcmd)
