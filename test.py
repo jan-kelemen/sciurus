@@ -385,8 +385,9 @@ def newtests(vim_name, working_directory, runtime, xxd_name):
 
         #Test_visual_block_scroll - something is off with the colors
         #Test_xxd_color2 - dump contains relative path to vimruntime which is changed in this tests
+        #Test_disassemble_closure_in_loop - for some reason an additional blank line is entered at beginning when TEST_MAY_FAIL variable is defined
         extra_env = {
-                "TEST_MAY_FAIL":"Test_visual_block_scroll,Test_xxd_color2"
+                "TEST_MAY_FAIL":"Test_visual_block_scroll,Test_xxd_color2,Test_disassemble_closure_in_loop"
                 }
         if test in ["test_xxd"]:
             extra_env["XXD"] = xxd_name
