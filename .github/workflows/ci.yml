@@ -25,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        features: [tiny, normal]
+        features: [tiny, normal, huge]
         compiler: [clang, gcc]
 
     steps:
@@ -50,6 +50,10 @@ jobs:
           sudo update-alternatives --set clang /usr/bin/clang-${{ env.CLANG_VER }}
           sudo update-alternatives --install /usr/bin/llvm-cov llvm-cov /usr/bin/llvm-cov-${{ env.CLANG_VER }} 100
           sudo update-alternatives --install /usr/bin/asan_symbolize asan_symbolize /usr/bin/asan_symbolize-${{ env.CLANG_VER }} 100
+
+      - name: Set up system
+        run: |
+          sudo bash ci/setup-xvfb.sh
 
       - name: Configure
         run: |
